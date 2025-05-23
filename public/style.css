@@ -76,7 +76,7 @@ li{
 }
 
 li a{
-    color: #4a90e2;
+    color: #5898e1;
     text-decoration: none;
     font-weight: 500;
 }
@@ -84,3 +84,32 @@ li a{
 li a:hover{
     text-decoration: underline;
 }
+
+/*show more/less toggle button*/
+.toggle-btn {
+    font-size: 0.85rem;
+    color: inherit;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding-left: 6px;
+    vertical-align: middle;
+    text-decoration: underline;
+    opacity: 0.85;
+    transition: opacity 0.2s ease;
+    outline: none;
+    box-shadow: none;
+    -webkit-tap-highlight-color: transparent; 
+}
+
+.toggle-btn:hover,
+.toggle-btn:focus,
+.toggle-btn:active {
+    outline: none;
+    box-shadow: none;
+    background: none;
+    opacity: 1;
+}
+
+
+
