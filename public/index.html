@@ -24,6 +24,7 @@
         <h2>Shortened URLs</h2>
         <ul id="shortened-urls"></ul>
     </div>
+    <div id="click-count" style="position: absolute; top: 40px; right: 40px; color: #fff;"></div>
 
     <script>
         const fetchShortenedURL = async () => {
@@ -33,64 +34,101 @@
 
             const list = document.getElementById("shortened-urls");
             list.innerHTML = "";
-            
-            const entries = Object.entries(links).reverse();
-            for (const [shortCode, url] of entries) {
-                const li = document.createElement('li');
-                const truncatedURL = url.length > 30 ? `${url.slice(0, 30)}...` : url;
 
+            const entries = Object.entries(links).reverse();
+            for (const [shortCode, urlData] of entries) {
+                const actualURL = urlData.url;
+                const truncatedURL = actualURL.length > 30 ? `${actualURL.slice(0, 30)}...` : actualURL;
+
+                const li = document.createElement('li');
                 li.innerHTML = `
-                <a href="/${shortCode}" target="_blank">${window.location.origin}/${shortCode}</a> -
-                <span class="short-url">${truncatedURL}</span>
-                ${url.length > 30 ? `<button class="toggle-btn">Show more</button>` : ""}
-                <span class="full-url" style="display:none;">${url}</span>
+                    <a href="/${shortCode}" target="_blank">${window.location.origin}/${shortCode}</a> -
+                    <span class="short-url">${truncatedURL}</span>
+                    ${actualURL.length > 30 ? `<button class="toggle-btn">Show more</button>` : ""}
+                    <span class="full-url" style="display:none;">${actualURL}</span>
+                    <button class="delete-btn" data-code="${shortCode}">✕</button>
                 `;
-            list.appendChild(li);
+                list.appendChild(li);
             }
+            
+            //click-counter
+            document.querySelectorAll('#shortened-urls li').forEach(li => {
+                li.addEventListener('click', async () => {
+                    const shortCode = li.querySelector('a').getAttribute('href').split('/').pop();
+                    const res = await fetch(`/count/${shortCode}`);
+                    const data = await res.json();
+                    if (data.count !== undefined) {
+                        const counterBox = document.getElementById('click-count');
+                        counterBox.innerHTML = `<strong>${shortCode}</strong> was clicked <strong>${data.count}</strong> times`;
+                        counterBox.style.display = "block";
+                    }
+                });
+            });
+
             document.querySelectorAll('.toggle-btn').forEach(button => {
                 button.addEventListener('click', () => {
                     const shortEl = button.previousElementSibling;
                     const fullEl = button.nextElementSibling;
+                    const deleteContainer = fullEl?.nextElementSibling;
 
                     const isHidden = fullEl.style.display === 'none';
+
                     fullEl.style.display = isHidden ? 'inline' : 'none';
                     shortEl.style.display = isHidden ? 'none' : 'inline';
+                    if (deleteContainer) {
+                        deleteContainer.style.display = isHidden ? 'block' : 'none';
+                    }
                     button.textContent = isHidden ? 'Show less' : 'Show more';
                 });
             });
+
+            document.querySelectorAll('.delete-btn').forEach(button => {
+                button.style.display = 'none'; // hide initially
+                button.addEventListener('click', async (e) => {
+                    e.stopPropagation();
+                    const code = button.dataset.code;
+                    if (confirm("Are you sure you want to delete this short URL?")) {
+                        const res = await fetch(`/delete/${code}`, { method: "DELETE" });
+                        if (res.ok) {
+                            await fetchShortenedURL();
+                        } else {
+                            alert("Error deleting the URL");
+                        }
+                    }
+                });
+            });
+
         }
-       
-        document.getElementById('shorten-form').addEventListener('submit', async(event)=>{
+
+        document.getElementById('shorten-form').addEventListener('submit', async (event) => {
             event.preventDefault();
 
             const formData = new FormData(event.target);
             const url = formData.get('url');
             const shortCode = formData.get('shortCode');
 
-            console.log(url, shortCode);
-
-            try{
-                const resoponse = await fetch("/shorten",{
+            try {
+                const response = await fetch("/shorten", {
                     method: "POST",
-                    headers: {"Content-Type":"application/json"},
-                    body: JSON.stringify({url, shortCode})
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ url, shortCode })
                 });
 
-                if (resoponse.ok){
-                    fetchShortenedURL();
+                if (response.ok) {
+                    await fetchShortenedURL();
                     alert("URL Generated Successfully");
                     event.target.reset();
-                }else{
+                } else {
                     const errorMessage = await response.text();
                     alert(errorMessage);
                 }
 
-            }catch(error){
+            } catch (error) {
                 console.log(error);
             }
-        })
+        });
 
-    fetchShortenedURL();
+        fetchShortenedURL();
     </script>
 </body>
 </html>

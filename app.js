@@ -19,12 +19,22 @@ const serveFile = async(res, filePath, contentType) =>{
 };
 
 const loadLinks = async() =>{
-    try{
+    try {
         const data = await readFile(DATA_FILE, 'utf-8');
-        return JSON.parse(data);
-    }catch(error){
-        if(error.code === "ENOENT"){
-            await writeFile(DATA_FILE, JSON.stringify({}))
+        const parsed = JSON.parse(data);
+
+        for (const key in parsed) {
+            if (typeof parsed[key] === 'string') {
+                parsed[key] = {
+                    url: parsed[key],
+                    count: 0
+                };
+            }
+        }
+        return parsed;
+    } catch (error) {
+        if (error.code === "ENOENT") {
+            await writeFile(DATA_FILE, JSON.stringify({}));
             return {};
         }
         throw error;
@@ -48,13 +58,30 @@ const server = createServer(async(req,res) => {
             const links = await loadLinks();
             res.writeHead(200, {"Content-Type":"application/json"});
             return res.end(JSON.stringify(links));
-        }else{
+        }
+        //
+        else if (req.url.startsWith("/count/")) {
+                const shortCode = req.url.split("/count/")[1];
+                const links = await loadLinks();
+
+                if (links[shortCode]) {
+                    res.writeHead(200, { "Content-Type": "application/json" });
+                    return res.end(JSON.stringify({ count: links[shortCode].count || 0 }));
+                } else {
+                    res.writeHead(404, { "Content-Type": "application/json" });
+                    return res.end(JSON.stringify({ error: "Short code not found" }));
+                }
+        }
+        //
+        else{
             const links = await loadLinks();
             const shortCode = req.url.slice(1);
             console.log("links red. ", req.url);
             
             if(links[shortCode]){
-                res.writeHead(302, {location : links[shortCode]});
+                links[shortCode].count = (links[shortCode].count || 0) + 1;
+                await saveLinks(links);
+                res.writeHead(302, { location: links[shortCode].url });
                 return res.end();
             }
 
@@ -85,11 +112,28 @@ const server = createServer(async(req,res) => {
                 return res.end("Short code already exists. Please choose another.");
             }
 
-            links[finalShortCode] = url;
+            links[finalShortCode] = {
+                url: url,
+                count: 0
+            };
             await saveLinks(links);
             res.writeHead(200, {"Content-Type":"application/json"});
             res.end(JSON.stringify({success:true, shortCode: finalShortCode}));
         });
+    }
+    if (req.method === "DELETE" && req.url.startsWith("/delete/")) {
+        const shortCode = req.url.split("/delete/")[1];
+        const links = await loadLinks();
+
+        if (links[shortCode]) {
+            delete links[shortCode];
+            await saveLinks(links);
+            res.writeHead(200, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ success: true }));
+        } else {
+            res.writeHead(404, { "Content-Type": "application/json" });
+            res.end(JSON.stringify({ error: "Short code not found" }));
+        }
     }
 });
 
