@@ -4,7 +4,7 @@ import crypto from "crypto";
 import path from "path";
 import { json } from "stream/consumers";
 
-const PORT = 3002;
+const PORT = process.env.PORT || 3002;
 const DATA_FILE = path.join("data", "links.json");
 
 const serveFile = async(res, filePath, contentType) =>{
